@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic-settings
+apscheduler
+feedparser
+httpx
+beautifulsoup4
+anthropic
+psycopg2-binary
