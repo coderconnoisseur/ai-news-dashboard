@@ -4,6 +4,7 @@ Uses APScheduler to run every N minutes.
 """
 import asyncio
 import logging
+import os
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
@@ -62,7 +63,7 @@ async def run_fetch_cycle():
         titles_updated = 0
         if total_new > 0:
             try:
-                titles_updated = enrich_titles(db, use_llm=bool(settings.ANTHROPIC_API_KEY))
+                titles_updated = enrich_titles(db, use_llm=bool(os.getenv("OPENROUTER_API_KEY")))
             except Exception as e:
                 logger.warning(f"Title enrichment error: {e}")
 

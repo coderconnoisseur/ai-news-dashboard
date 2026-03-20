@@ -8,7 +8,7 @@ Two-stage pipeline:
     • Collapses excess whitespace / punctuation artefacts
     • Trims arXiv boilerplate:  "[Submitted on 3 Mar 2026] Title" → "Title"
 
-  Stage 2 — LLM polishing    (optional, Claude Haiku, batched)
+    Stage 2 — LLM polishing    (optional, OpenRouter model, batched)
     • Rewrites academic / awkward titles into clean, readable headlines
     • Only runs when POLISH_TITLES=true in config and the title passes a
       "needs polish" heuristic (too long, contains jargon brackets, etc.)
@@ -19,9 +19,9 @@ pass (like image enrichment).
 """
 import re
 import logging
-from typing import Optional
 from sqlalchemy.orm import Session
 from app.models import NewsItem
+from app.services.ai_service import _complete
 
 logger = logging.getLogger(__name__)
 
@@ -119,24 +119,13 @@ _LLM_SYSTEM = (
 
 def polish_title_with_llm(title: str) -> str:
     """
-    Stage 2: use Claude Haiku to rewrite a messy title.
+    Stage 2: use the configured OpenRouter model to rewrite a messy title.
     Returns original title on any failure (never raises).
     """
     try:
-        import anthropic
-        from app.config import get_settings
-        settings = get_settings()
-        if not settings.ANTHROPIC_API_KEY:
-            return title
-
-        client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-        msg = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=60,
-            system=_LLM_SYSTEM,
-            messages=[{"role": "user", "content": title}],
-        )
-        polished = msg.content[0].text.strip().strip('"').strip("'")
+        prompt = f"{_LLM_SYSTEM}\n\nOriginal title:\n{title}\n\nRewritten title:"
+        polished = _complete(prompt=prompt, max_tokens=60, temperature=0.2)
+        polished = polished.strip().strip('"').strip("'")
         if polished and 5 < len(polished) < 300:
             return polished
     except Exception as e:
