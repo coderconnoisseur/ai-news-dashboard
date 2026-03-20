@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 from app.models import Source, NewsItem
 from app.config import get_settings
+from app.services.title_service import clean_title
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -279,7 +280,7 @@ async def fetch_rss_source(source: Source, needs_filter: bool = True) -> list[di
 
         for entry in feed.entries[:40]:
             fetched += 1
-            title = getattr(entry, "title", "").strip()
+            title = clean_title(getattr(entry, "title", "").strip())
             url   = getattr(entry, "link",  "").strip()
             if not title or not url:
                 continue
@@ -387,19 +388,29 @@ async def fetch_scraper_source(source: Source, needs_filter: bool) -> list[dict]
 
             # Extract title: prefer explicit heading inside link, else link text
             title_el = a_tag.find(cfg["title_selector"].split(",")[0].strip())
-            title = (title_el.get_text(strip=True) if title_el
-                     else a_tag.get_text(strip=True))
-            title = " ".join(title.split())[:300]
+            raw_title = (title_el.get_text(strip=True) if title_el
+                         else a_tag.get_text(strip=True))
+            title = clean_title(" ".join(raw_title.split()))
             if not title or len(title) < 10:
                 continue
 
             # Extract summary from sibling/parent paragraph
             parent = a_tag.find_parent(["article", "div", "li", "section"])
             summary = ""
+            image_url = None
             if parent:
                 p = parent.find("p")
                 if p:
                     summary = " ".join(p.get_text(strip=True).split())[:600]
+                # Try to grab an image from the card block itself
+                img = parent.find("img")
+                if img:
+                    src = (img.get("src") or img.get("data-src") or "").strip()
+                    if src and not any(bad in src.lower() for bad in ["pixel", "beacon", "1x1", "icon"]):
+                        if src.startswith("/"):
+                            src = cfg["base_url"].rstrip("/") + src
+                        if src.startswith("http"):
+                            image_url = src
 
             # Filters
             if is_ad(title, summary, href):
@@ -413,7 +424,7 @@ async def fetch_scraper_source(source: Source, needs_filter: bool) -> list[dict]
                 "summary":      summary,
                 "author":       None,
                 "published_at": datetime.now(tz=timezone.utc),
-                "image_url":    None,
+                "image_url":    image_url,
                 "tags":         [],
                 "content_hash": compute_hash(title, href),
             })

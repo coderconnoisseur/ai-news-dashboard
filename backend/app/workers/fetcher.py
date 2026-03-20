@@ -1,5 +1,5 @@
 """
-Background worker: scheduled RSS fetch + dedup run.
+Background worker: scheduled RSS fetch + dedup + enrichment.
 Uses APScheduler to run every N minutes.
 """
 import asyncio
@@ -10,6 +10,8 @@ from app.database import SessionLocal
 from app.models import Source
 from app.services.ingestion import fetch_source, save_news_items, DEFAULT_SOURCES
 from app.services.dedup import find_duplicates
+from app.services.image_service import enrich_missing_images
+from app.services.title_service import enrich_titles
 from app.config import get_settings
 from datetime import datetime, timezone
 
@@ -20,13 +22,20 @@ scheduler = AsyncIOScheduler()
 
 
 async def run_fetch_cycle():
-    """Fetch all active sources, save items, run dedup."""
+    """
+    Full pipeline per cycle:
+      1. Fetch + filter all active sources
+      2. Save new items (Stage-1 title cleaning applied at parse time)
+      3. Dedup pass
+      4. Image enrichment  — fetch og:image for items missing thumbnails
+      5. Title enrichment  — Stage-1 regex + optional Stage-2 LLM polish
+    """
     db: Session = SessionLocal()
 
-    # Build a lookup of needs_filter by source name from the registry
     filter_map = {s["name"]: s.get("needs_filter", True) for s in DEFAULT_SOURCES}
 
     try:
+        # Step 1 + 2: fetch and save
         sources = db.query(Source).filter(Source.active == True).all()
         total_new = 0
 
@@ -38,9 +47,29 @@ async def run_fetch_cycle():
             db.commit()
             total_new += new_count
 
-        # Run dedup after all fetches
+        # Step 3: dedup
         dupes = find_duplicates(db)
-        logger.info(f"Fetch cycle done: {total_new} new items, {dupes} duplicates marked.")
+
+        # Step 4: image enrichment
+        images_found = 0
+        if total_new > 0:
+            try:
+                images_found = await enrich_missing_images(db)
+            except Exception as e:
+                logger.warning(f"Image enrichment error: {e}")
+
+        # Step 5: title enrichment
+        titles_updated = 0
+        if total_new > 0:
+            try:
+                titles_updated = enrich_titles(db, use_llm=bool(settings.ANTHROPIC_API_KEY))
+            except Exception as e:
+                logger.warning(f"Title enrichment error: {e}")
+
+        logger.info(
+            f"Fetch cycle done: {total_new} new items, {dupes} dupes, "
+            f"{images_found} images found, {titles_updated} titles polished."
+        )
 
     except Exception as e:
         logger.error(f"Fetch cycle error: {e}")
@@ -49,7 +78,6 @@ async def run_fetch_cycle():
 
 
 def start_scheduler():
-    """Start background scheduler."""
     scheduler.add_job(
         run_fetch_cycle,
         trigger="interval",
@@ -62,6 +90,5 @@ def start_scheduler():
 
 
 def stop_scheduler():
-    """Graceful shutdown."""
     if scheduler.running:
         scheduler.shutdown(wait=False)
