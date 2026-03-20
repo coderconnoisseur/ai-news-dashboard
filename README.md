@@ -4,7 +4,19 @@
 
 A production-ready dashboard that automatically ingests AI/ML news from 20+ sources, deduplicates stories, enriches them with OpenRouter-generated summaries and images, and lets you broadcast curated favorites to Email, LinkedIn, and WhatsApp in three clicks.
 
----
+LIVE LINK:https://ai-news-dashboard-1-st3g.onrender.com/
+TO RUN LOCALLY:
+1.Clone this Repo
+```
+git clone https://github.com/coderconnoisseur/ai-news-dashboard
+```
+2. Run docker desktop
+3. Set up environment variables (for postgres and openrouter)(look at .env.example)
+4. Run the command from the root folder 
+```
+docker compose up --build
+```
+5.Visit localhost://3000
 
 ## Table of contents
 
@@ -289,21 +301,6 @@ Hacker News (≥5 pts, LLM keyword) · Reddit r/MachineLearning · Reddit r/Loca
 
 ```bash
 docker compose up --build -d
-```
-
-### Render.com
-
-1. Create a PostgreSQL instance → set `DATABASE_URL`
-2. Web Service from `./backend/Dockerfile`
-3. Static Site from `./frontend` (`npm run build`, publish `dist/`)
-
-### Fly.io
-
-```bash
-fly postgres create --name ainews-db
-fly launch --dockerfile backend/Dockerfile  --name ainews-backend
-fly launch --dockerfile frontend/Dockerfile --name ainews-frontend
-fly secrets set OPENROUTER_API_KEY=sk-or-v1-...
 ```
 
 ---
