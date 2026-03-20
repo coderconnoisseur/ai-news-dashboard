@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
 
     # Database
-    DATABASE_URL: str = "postgresql://postgres:postgres@db:5432/ainews"
+    DATABASE_URL: str = "postgresql://ai_news_dashboard_user:3LWFQX8cpDbdIVsMly5Al1ecnAn7vx0j@dpg-d6uib015pdvs73822190-a.oregon-postgres.render.com/ai_news_dashboard"
 
     # API Keys
     ANTHROPIC_API_KEY: str = ""
