@@ -28,7 +28,9 @@ def get_db():
 def create_tables():
     """Create all tables on startup, then run lightweight column migrations."""
     from app.models import source, news_item, favorite, broadcast_log, user  # noqa
-    Base.metadata.create_all(bind=engine)
+    # `checkfirst=True` makes this idempotent for Postgres named types (ENUMs),
+    # so startup doesn't crash when the DB already has the enum types.
+    Base.metadata.create_all(bind=engine, checkfirst=True)
     _run_migrations()
 
 
