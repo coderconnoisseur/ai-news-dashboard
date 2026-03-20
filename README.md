@@ -5,7 +5,9 @@
 A production-ready dashboard that automatically ingests AI/ML news from 20+ sources, deduplicates stories, enriches them with OpenRouter-generated summaries and images, and lets you broadcast curated favorites to Email, LinkedIn, and WhatsApp in three clicks.
 
 LIVE LINK:https://ai-news-dashboard-1-st3g.onrender.com/
+
 TO RUN LOCALLY:
+
 1.Clone this Repo
 ```
 git clone https://github.com/coderconnoisseur/ai-news-dashboard
