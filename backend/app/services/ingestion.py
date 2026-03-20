@@ -368,7 +368,7 @@ async def fetch_scraper_source(source: Source, needs_filter: bool) -> list[dict]
             )
             resp.raise_for_status()
 
-        soup = BeautifulSoup(resp.text, "lxml")
+        soup = BeautifulSoup(resp.text, "html.parser")
 
         seen_urls: set[str] = set()
         for a_tag in soup.select(cfg["article_selector"])[:50]:
@@ -476,6 +476,8 @@ def save_news_items(db: Session, source: Source, raw_items: list[dict]) -> int:
     Persist news items. Skips duplicates by hash and URL.
     Returns count of newly saved items.
     """
+    from sqlalchemy.exc import IntegrityError
+
     saved = skipped = 0
     for item in raw_items:
         if db.query(NewsItem).filter(NewsItem.content_hash == item["content_hash"]).first():
@@ -485,26 +487,28 @@ def save_news_items(db: Session, source: Source, raw_items: list[dict]) -> int:
             skipped += 1
             continue
 
-        # Hard-cap every string to match the exact VARCHAR(N) column limits.
-        # arXiv paper titles routinely hit 600-900 chars and will crash a
-        # VARCHAR(500) column without this guard.
-        title  = (item["title"]  or "")[:490]   # model: String(500)
-        url    = (item["url"]    or "")[:990]   # model: String(1000)
-        author = (item["author"] or "")[:195][:195] if item.get("author") else None  # model: String(200)
-        image  = (item["image_url"] or "")[:990] if item.get("image_url") else None  # model: String(1000)
+        news = NewsItem(
+            source_id=source.id,
+            title=item.get("title") or "",
+            url=item.get("url") or "",
+            summary=item.get("summary"),
+            author=item.get("author"),
+            published_at=item.get("published_at"),
+            image_url=item.get("image_url"),
+            tags=item.get("tags") or [],
+            content_hash=item.get("content_hash"),
+        )
 
-        db.add(NewsItem(
-            source_id=   source.id,
-            title=       title,
-            url=         url,
-            summary=     item["summary"],
-            author=      author,
-            published_at=item["published_at"],
-            image_url=   image,
-            tags=        item["tags"],
-            content_hash=item["content_hash"],
-        ))
-        saved += 1
+        # Prevent a single duplicate race (from parallel workers) from failing
+        # the entire source batch.
+        try:
+            with db.begin_nested():
+                db.add(news)
+                db.flush()
+            saved += 1
+        except IntegrityError:
+            skipped += 1
+            continue
 
     db.commit()
     if skipped:
