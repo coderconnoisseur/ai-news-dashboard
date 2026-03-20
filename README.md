@@ -1,8 +1,8 @@
 # AI News Aggregation & Broadcasting Dashboard
 
-> Built for Culinda · v1.1 · FastAPI · React · PostgreSQL · Claude AI
+> Built for Culinda · v1.1 · FastAPI · React · PostgreSQL · OpenRouter LLM
 
-A production-ready dashboard that automatically ingests AI/ML news from 20+ sources, deduplicates stories, enriches them with Claude-generated summaries and images, and lets you broadcast curated favorites to Email, LinkedIn, and WhatsApp in three clicks.
+A production-ready dashboard that automatically ingests AI/ML news from 20+ sources, deduplicates stories, enriches them with OpenRouter-generated summaries and images, and lets you broadcast curated favorites to Email, LinkedIn, and WhatsApp in three clicks.
 
 ---
 
@@ -24,21 +24,21 @@ A production-ready dashboard that automatically ingests AI/ML news from 20+ sour
 
 ## Features
 
-| Area | What it does |
-|---|---|
-| **News feed** | 20+ sources, auto-refreshed every 15 min, sortable by date / impact / source |
-| **AI/ML filter** | Keyword whitelist (50 terms) strips off-topic content from mixed sources |
-| **Ad detection** | Pattern matching drops promotional posts before they reach the DB |
-| **Deduplication** | Jaccard similarity (configurable threshold, default 0.85) marks near-duplicate stories |
-| **Image enrichment** | Fetches `og:image` / `twitter:image` for articles missing thumbnails |
-| **Title polishing** | Regex stage strips date/category prefixes; Claude Haiku rewrites messy academic titles |
-| **AI summaries** | Claude Opus generates 2–3 sentence summaries per article |
-| **Impact scoring** | Claude Haiku rates each story 0–10 for importance |
-| **Favorites** | Star any article; persisted in Postgres with full history |
-| **Broadcast** | Real SMTP email; simulated LinkedIn post and WhatsApp message with AI-generated copy |
-| **Search & filters** | Keyword search, date range, source filter, include/exclude duplicates |
-| **Sources admin** | Add / toggle / delete sources from the UI without restarting |
-| **Broadcast history** | Full log of every send with platform, status, and generated content |
+| Area                  | What it does                                                                             |
+| --------------------- | ---------------------------------------------------------------------------------------- |
+| **News feed**         | 20+ sources, auto-refreshed every 15 min, sortable by date / impact / source             |
+| **AI/ML filter**      | Keyword whitelist (50 terms) strips off-topic content from mixed sources                 |
+| **Ad detection**      | Pattern matching drops promotional posts before they reach the DB                        |
+| **Deduplication**     | Jaccard similarity (configurable threshold, default 0.85) marks near-duplicate stories   |
+| **Image enrichment**  | Fetches `og:image` / `twitter:image` for articles missing thumbnails                     |
+| **Title polishing**   | Regex stage strips date/category prefixes; OpenRouter LLM rewrites messy academic titles |
+| **AI summaries**      | OpenRouter LLM generates 2–3 sentence summaries per article                              |
+| **Impact scoring**    | OpenRouter LLM rates each story 0–10 for importance                                      |
+| **Favorites**         | Star any article; persisted in Postgres with full history                                |
+| **Broadcast**         | Real SMTP email; simulated LinkedIn post and WhatsApp message with AI-generated copy     |
+| **Search & filters**  | Keyword search, date range, source filter, include/exclude duplicates                    |
+| **Sources admin**     | Add / toggle / delete sources from the UI without restarting                             |
+| **Broadcast history** | Full log of every send with platform, status, and generated content                      |
 
 ---
 
@@ -61,7 +61,7 @@ A production-ready dashboard that automatically ingests AI/ML news from 20+ sour
 │  4. Save to DB (SHA-256 hash dedup on insert)                        │
 │  5. Jaccard dedup pass                                               │
 │  6. Image enrichment (og:image fetch)                                │
-│  7. Title enrichment (Claude Haiku for messy titles)                 │
+│  7. Title enrichment (OpenRouter LLM for messy titles)               │
 └─────────────────────────────┬────────────────────────────────────────┘
                               │
                               ▼
@@ -73,11 +73,11 @@ A production-ready dashboard that automatically ingests AI/ML news from 20+ sour
             ├─────────────────────────────────────────────┐
             ▼                                             ▼
 ┌─────────────────────────┐               ┌──────────────────────────┐
-│   FastAPI Backend        │               │   Claude AI Services     │
-│   /api/news/*            │◀─────────────▶│   Summarization (Opus)   │
-│   /api/favorites/*       │               │   Impact score (Haiku)   │
-│   /api/broadcast/*       │               │   LinkedIn post (Opus)   │
-│   /api/sources/*         │               │   Newsletter (Opus)      │
+│   FastAPI Backend        │               │   OpenRouter AI Services │
+│   /api/news/*            │◀─────────────▶│   Summarization          │
+│   /api/favorites/*       │               │   Impact scoring         │
+│   /api/broadcast/*       │               │   LinkedIn post          │
+│   /api/sources/*         │               │   Newsletter             │
 └──────────┬───────────────┘               └──────────────────────────┘
            │  REST JSON
            ▼
@@ -111,13 +111,13 @@ news_items (
   id, source_id,
   title,          -- Text; polished by title_service
   summary,        -- raw extracted text
-  ai_summary,     -- Claude-generated 2-3 sentence summary
+  ai_summary,     -- OpenRouter-generated 2-3 sentence summary
   url, author, image_url, published_at, fetched_at,
   tags[],
   is_duplicate, duplicate_of_id,
   content_hash,   -- SHA-256(title+url) for fast dedup
   similarity_score,
-  impact_score    -- 0-10, Claude Haiku
+  impact_score    -- 0-10, OpenRouter LLM
 )
 
 favorites      (id, user_id, news_item_id, created_at)
@@ -136,14 +136,14 @@ users          (id, name, email, role, created_at)
 
 ## Quick start
 
-**Prerequisites:** Docker · Docker Compose · Anthropic API key
+**Prerequisites:** Docker · Docker Compose · OpenRouter API key
 
 ```bash
 # 1. Clone and configure
 git clone <repo-url>
 cd ai-news-dashboard
 cp .env.example .env
-# open .env — set ANTHROPIC_API_KEY at minimum
+# open .env — set OPENROUTER_API_KEY at minimum
 
 # 2. Launch
 docker compose up --build
@@ -151,11 +151,11 @@ docker compose up --build
 
 Wait ~30 s for Postgres to initialise and the first fetch to complete.
 
-| Service | URL |
-|---|---|
-| Dashboard | http://localhost:3000 |
+| Service       | URL                            |
+| ------------- | ------------------------------ |
+| Dashboard     | http://localhost:3000          |
 | API (Swagger) | http://localhost:8000/api/docs |
-| Postgres | localhost:5432 |
+| Postgres      | localhost:5432                 |
 
 ```bash
 # Smoke tests
@@ -192,50 +192,55 @@ npm run dev     # → http://localhost:5173
 
 ## Configuration reference
 
-| Variable | Default | Description |
-|---|---|---|
-| `DATABASE_URL` | `postgresql://postgres:postgres@db:5432/ainews` | Postgres connection |
-| `ANTHROPIC_API_KEY` | — | **Required** for all AI features |
-| `FETCH_INTERVAL_MINUTES` | `15` | Background fetch cadence |
-| `DEDUP_SIMILARITY_THRESHOLD` | `0.85` | Jaccard threshold (0–1; higher = stricter) |
-| `MAX_NEWS_AGE_DAYS` | `7` | Feed hides items older than this |
-| `SMTP_HOST / PORT / USER / PASSWORD` | — | Real email (leave blank → simulation) |
-| `LINKEDIN_ACCESS_TOKEN` | — | LinkedIn API (blank → simulation) |
-| `WHATSAPP_API_KEY / PHONE_ID` | — | WhatsApp Business API (blank → simulation) |
+| Variable                             | Default                                         | Description                                    |
+| ------------------------------------ | ----------------------------------------------- | ---------------------------------------------- |
+| `DATABASE_URL`                       | `postgresql://postgres:postgres@db:5432/ainews` | Postgres connection                            |
+| `OPENROUTER_API_KEY`                 | —                                               | **Required** for AI features                   |
+| `OPENROUTER_MODEL`                   | —                                               | Model slug used for summaries/scoring/captions |
+| `FETCH_INTERVAL_MINUTES`             | `15`                                            | Background fetch cadence                       |
+| `DEDUP_SIMILARITY_THRESHOLD`         | `0.85`                                          | Jaccard threshold (0–1; higher = stricter)     |
+| `MAX_NEWS_AGE_DAYS`                  | `7`                                             | Feed hides items older than this               |
+| `SMTP_HOST / PORT / USER / PASSWORD` | —                                               | Real email (leave blank → simulation)          |
+| `LINKEDIN_ACCESS_TOKEN`              | —                                               | LinkedIn API (blank → simulation)              |
+| `WHATSAPP_API_KEY / PHONE_ID`        | —                                               | WhatsApp Business API (blank → simulation)     |
 
 ---
 
 ## API reference
 
 ### News
-| Method | Path | Notes |
-|---|---|---|
-| `GET` | `/api/news/feed` | `page`, `page_size`, `sort_by`, `search`, `source_id`, `days_back` |
-| `GET` | `/api/news/{id}` | Single item |
-| `POST` | `/api/news/refresh` | Triggers background fetch |
-| `GET` | `/api/news/stats/summary` | Dedup stats, source counts |
+
+| Method | Path                      | Notes                                                              |
+| ------ | ------------------------- | ------------------------------------------------------------------ |
+| `GET`  | `/api/news/feed`          | `page`, `page_size`, `sort_by`, `search`, `source_id`, `days_back` |
+| `GET`  | `/api/news/{id}`          | Single item                                                        |
+| `POST` | `/api/news/refresh`       | Triggers background fetch                                          |
+| `GET`  | `/api/news/stats/summary` | Dedup stats, source counts                                         |
 
 ### Favorites
-| Method | Path | Notes |
-|---|---|---|
-| `GET` | `/api/favorites/` | All favorites with news data |
-| `POST` | `/api/favorites/{id}` | Star an item |
-| `DELETE` | `/api/favorites/{id}` | Unstar |
+
+| Method   | Path                  | Notes                        |
+| -------- | --------------------- | ---------------------------- |
+| `GET`    | `/api/favorites/`     | All favorites with news data |
+| `POST`   | `/api/favorites/{id}` | Star an item                 |
+| `DELETE` | `/api/favorites/{id}` | Unstar                       |
 
 ### Broadcast
-| Method | Path | Notes |
-|---|---|---|
-| `POST` | `/api/broadcast/` | `{ favorite_ids, platform, recipient_email? }` |
-| `GET` | `/api/broadcast/logs` | Broadcast history |
+
+| Method | Path                  | Notes                                          |
+| ------ | --------------------- | ---------------------------------------------- |
+| `POST` | `/api/broadcast/`     | `{ favorite_ids, platform, recipient_email? }` |
+| `GET`  | `/api/broadcast/logs` | Broadcast history                              |
 
 ### Sources
-| Method | Path | Notes |
-|---|---|---|
-| `GET` | `/api/sources/` | List |
-| `POST` | `/api/sources/` | Add |
-| `PATCH` | `/api/sources/{id}/toggle` | Enable / disable |
-| `DELETE` | `/api/sources/{id}` | Remove |
-| `POST` | `/api/sources/seed` | Re-seed defaults (upsert) |
+
+| Method   | Path                       | Notes                     |
+| -------- | -------------------------- | ------------------------- |
+| `GET`    | `/api/sources/`            | List                      |
+| `POST`   | `/api/sources/`            | Add                       |
+| `PATCH`  | `/api/sources/{id}/toggle` | Enable / disable          |
+| `DELETE` | `/api/sources/{id}`        | Remove                    |
+| `POST`   | `/api/sources/seed`        | Re-seed defaults (upsert) |
 
 Full docs: **http://localhost:8000/api/docs**
 
@@ -243,33 +248,37 @@ Full docs: **http://localhost:8000/api/docs**
 
 ## AI pipeline
 
-All Claude calls are non-blocking — ingestion never waits on the API.
+All OpenRouter calls are non-blocking — ingestion never waits on the API.
 
-| Feature | Model | When |
-|---|---|---|
-| Title clean (regex) | — | At parse time, every item |
-| Title polish | `claude-haiku-4-5` | Background, items matching messy-title heuristic |
-| Image enrichment | — | Background, items with no `image_url` |
-| Article summary | `claude-opus-4-5` | On-demand when feed is viewed |
-| Impact score | `claude-haiku-4-5` | Background, after save |
-| LinkedIn post | `claude-opus-4-5` | On broadcast action |
-| Newsletter HTML | `claude-opus-4-5` | On broadcast action |
-| Email body | rule-based | On broadcast action (zero LLM cost) |
+| Feature             | Model              | When                                             |
+| ------------------- | ------------------ | ------------------------------------------------ |
+| Title clean (regex) | —                  | At parse time, every item                        |
+| Title polish        | `OPENROUTER_MODEL` | Background, items matching messy-title heuristic |
+| Image enrichment    | —                  | Background, items with no `image_url`            |
+| Article summary     | `OPENROUTER_MODEL` | On-demand when feed is viewed                    |
+| Impact score        | `OPENROUTER_MODEL` | Background, after save                           |
+| LinkedIn post       | `OPENROUTER_MODEL` | On broadcast action                              |
+| Newsletter HTML     | `OPENROUTER_MODEL` | On broadcast action                              |
+| Email body          | rule-based         | On broadcast action (zero LLM cost)              |
 
 ---
 
 ## News sources
 
 ### AI-lab blogs (no keyword filter)
+
 OpenAI · Google AI · Anthropic · DeepMind · Meta AI · Hugging Face · Microsoft AI · The Batch (deeplearning.ai)
 
 ### Tech media (AI keyword filter applied)
+
 TechCrunch AI · VentureBeat AI · The Verge AI · Wired AI · MIT Technology Review
 
 ### Research
+
 arXiv cs.AI · arXiv cs.LG · arXiv cs.CL · PapersWithCode
 
 ### Community
+
 Hacker News (≥5 pts, LLM keyword) · Reddit r/MachineLearning · Reddit r/LocalLLaMA
 
 ---
@@ -277,36 +286,39 @@ Hacker News (≥5 pts, LLM keyword) · Reddit r/MachineLearning · Reddit r/Loca
 ## Deployment
 
 ### Docker Compose
+
 ```bash
 docker compose up --build -d
 ```
 
 ### Render.com
+
 1. Create a PostgreSQL instance → set `DATABASE_URL`
 2. Web Service from `./backend/Dockerfile`
 3. Static Site from `./frontend` (`npm run build`, publish `dist/`)
 
 ### Fly.io
+
 ```bash
 fly postgres create --name ainews-db
 fly launch --dockerfile backend/Dockerfile  --name ainews-backend
 fly launch --dockerfile frontend/Dockerfile --name ainews-frontend
-fly secrets set ANTHROPIC_API_KEY=sk-ant-...
+fly secrets set OPENROUTER_API_KEY=sk-or-v1-...
 ```
 
 ---
 
 ## Tech stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | React 18 · Vite · Tailwind CSS · react-router-dom · lucide-react |
-| Backend | FastAPI · SQLAlchemy 2 · APScheduler · Pydantic v2 |
-| Database | PostgreSQL 16 |
-| Ingestion | feedparser · httpx · BeautifulSoup4 |
-| AI | Anthropic Claude (opus-4-5, haiku-4-5) |
-| Serving | nginx · uvicorn |
-| Containers | Docker · Docker Compose |
+| Layer      | Technology                                                       |
+| ---------- | ---------------------------------------------------------------- |
+| Frontend   | React 18 · Vite · Tailwind CSS · react-router-dom · lucide-react |
+| Backend    | FastAPI · SQLAlchemy 2 · APScheduler · Pydantic v2               |
+| Database   | PostgreSQL 16                                                    |
+| Ingestion  | feedparser · httpx · BeautifulSoup4                              |
+| AI         | OpenRouter Chat Completions API                                  |
+| Serving    | nginx · uvicorn                                                  |
+| Containers | Docker · Docker Compose                                          |
 
 ---
 
@@ -331,7 +343,7 @@ ai-news-dashboard/
 │       │   ├── ingestion.py      # RSS + scraper, relevance + ad filter
 │       │   ├── dedup.py          # Jaccard similarity dedup
 │       │   ├── image_service.py  # og:image enrichment
-│       │   ├── title_service.py  # Regex + Claude Haiku title polish
+│       │   ├── title_service.py  # Regex + OpenRouter title polish
 │       │   ├── ai_service.py     # Summarize, score, caption, newsletter
 │       │   └── broadcast_service.py
 │       └── workers/
